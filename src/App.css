@@ -109,3 +109,9 @@ body {
   font-weight: bold;
   margin-top: 20px;
 }
+
+.weather-emoji.favorability {
+  font-size: 0.75rem;
+  color: #444;
+  margin-top: 2px;
+}

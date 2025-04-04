@@ -6,22 +6,32 @@ function App() {
   const [lineups, setLineups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastWeatherUpdate, setLastWeatherUpdate] = useState(null);
+  const [useTestData, setUseTestData] = useState(true); // toggle for test/live
 
   const fetchLineups = async () => {
     try {
-      console.log('📥 Fetching lineups...');
-      const res = await fetch('http://localhost:3001/lineups');
+      setLoading(true);
+      const url = useTestData
+        ? 'http://localhost:3001/lineups?test=true'
+        : 'http://localhost:3001/lineups';
+
+      console.log(`📥 Fetching lineups from: ${url}`);
+      const res = await fetch(url);
       const players = await res.json();
 
       const adjusted = players.map(p => ({
         ...p,
-        adjustedHR: (p.baseHR * 100).toFixed(1)
+        adjustedHR: (p.baseHR * 100).toFixed(1),
+        batterHand: p.originalBatterHand === 'S' ? `${p.batterHand} (S)` : p.batterHand
       })).sort((a, b) => b.baseHR - a.baseHR);
 
       console.log('📊 Lineups received:', adjusted);
       setLineups(adjusted);
-      setLastUpdated(new Date());
+      const top = players[0];
+      if (top && top.weatherUpdated) {
+        setLastWeatherUpdate(new Date(top.weatherUpdated));
+      }
       setLoading(false);
     } catch (err) {
       console.error('❌ Error fetching lineups:', err);
@@ -42,17 +52,15 @@ function App() {
     }, delayToNextHour);
 
     return () => clearTimeout(initialTimeout);
-  }, []);
+  }, [useTestData]);
 
   const getColorDot = (value) => {
-    if (value > 1.15) return <span className="dot dot-red" />;
-    if (value > 1.05) return <span className="dot dot-orange" />;
-    if (value > 0.95) return <span className="dot dot-yellow" />;
-    if (value > 0.85) return <span className="dot dot-green" />;
-    return <span className="dot dot-blue" />;
+    if (value >= 1.2) return <span className="dot dot-green" />;       // Great for HRs
+    if (value >= 1.0) return <span className="dot dot-yellow" />;     // Around average
+    return <span className="dot dot-red" />;                          // Bad for HRs
   };
 
-  const getWeatherDisplay = (mult, emoji) => {
+  const getWeatherDisplay = (mult, emoji, batterHand, windText, windFavorability) => {
     const parts = (emoji || '').split(' ');
     const arrow = parts[0] || '';
     const temp = parts[1] || '';
@@ -60,12 +68,13 @@ function App() {
     const wind = parts[3] || '';
 
     return (
-      <div className="weather-cell">
+      <div className="weather-cell" title={windText + ' • ' + windFavorability}>
         {getColorDot(mult)}
         <strong>{(parseFloat(mult || 1) * 100).toFixed(0)}%</strong>
         <span className="weather-emoji">
           {arrow} {temp} {humid} {wind}
         </span>
+        <span className="weather-emoji">{windFavorability}</span>
       </div>
     );
   };
@@ -85,8 +94,19 @@ function App() {
     <div className="App">
       <img src={logo} alt="header" className="header-image" />
 
-      {lastUpdated && (
-        <div className="update-time">Updated: {lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
+      <div className="toggle-container">
+        <label>
+          <input
+            type="checkbox"
+            checked={useTestData}
+            onChange={() => setUseTestData(!useTestData)}
+          />
+          Use Test Data
+        </label>
+      </div>
+
+      {lastWeatherUpdate && (
+        <div className="update-time">Updated: {lastWeatherUpdate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
       )}
 
       <div className="table-container">
@@ -117,7 +137,7 @@ function App() {
                 <td>{getColorDot(p.pitcherMultiplier)}{formatPercent(p.pitcherMultiplier)}</td>
                 <td>{p.park}</td>
                 <td>{getColorDot(p.parkMultiplier)}{formatPercent(p.parkMultiplier)}</td>
-                <td>{getWeatherDisplay(p.weatherMultiplier, p.weatherEmoji)}</td>
+                <td>{getWeatherDisplay(p.weatherMultiplier, p.weatherEmoji, p.batterHand, p.windRelativeText, p.windFavorability)}</td>
                 <td>{p.adjustedHR}%</td>
                 <td>{formatTime(p.gameTime)}</td>
               </tr>
