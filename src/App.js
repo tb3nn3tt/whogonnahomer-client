@@ -9,12 +9,20 @@ function App() {
   const [lastWeatherUpdate, setLastWeatherUpdate] = useState(null);
   const [useTestData, setUseTestData] = useState(true); // toggle for test/live
 
+  const getApiBaseUrl = () => {
+    const isLocalhost = window.location.hostname === 'localhost';
+    return isLocalhost
+      ? 'http://localhost:3001'
+      : 'https://whogonnahomer-server.vercel.app'; // Replace with your actual Vercel server URL
+  };
+
   const fetchLineups = async () => {
     try {
       setLoading(true);
+      const baseUrl = getApiBaseUrl();
       const url = useTestData
-        ? 'http://localhost:3001/lineups?test=true'
-        : 'http://localhost:3001/lineups';
+        ? `${baseUrl}/lineups?test=true`
+        : `${baseUrl}/lineups`;
 
       console.log(`📥 Fetching lineups from: ${url}`);
       const res = await fetch(url);
@@ -55,9 +63,9 @@ function App() {
   }, [useTestData]);
 
   const getColorDot = (value) => {
-    if (value >= 1.2) return <span className="dot dot-green" />;       // Great for HRs
-    if (value >= 1.0) return <span className="dot dot-yellow" />;     // Around average
-    return <span className="dot dot-red" />;                          // Bad for HRs
+    if (value >= 1.2) return <span className="dot dot-green" />;
+    if (value >= 1.0) return <span className="dot dot-yellow" />;
+    return <span className="dot dot-red" />;
   };
 
   const getWeatherDisplay = (mult, emoji, batterHand, windText, windFavorability) => {
